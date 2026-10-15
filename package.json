@@ -1,0 +1,36 @@
+{
+  "name": "workspace",
+  "version": "0.0.0",
+  "license": "MIT",
+  "scripts": {
+    "preinstall": "sh -c 'rm -f package-lock.json yarn.lock; case \"$npm_config_user_agent\" in pnpm/*) ;; *) echo \"Use pnpm instead\" >&2; exit 1 ;; esac'",
+    "build": "next build",
+    "start": "next start --hostname 0.0.0.0 -p ${PORT:-3000}",
+    "typecheck:libs": "tsc --build",
+    "typecheck:app": "tsc --noEmit -p tsconfig.next.json",
+    "typecheck": "pnpm run typecheck:libs && pnpm run typecheck:app && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck",
+    "dev": "next dev --hostname 0.0.0.0 -p ${PORT:-3000}"
+  },
+  "private": true,
+  "dependencies": {
+    "@clerk/react": "^6.17.8",
+    "@clerk/themes": "^2.4.57",
+    "@replit/connectors-sdk": "^0.4.3",
+    "@supabase/supabase-js": "^2.117.3",
+    "@tanstack/react-query": "catalog:",
+    "@workspace/api-client-react": "workspace:*",
+    "lucide-react": "catalog:",
+    "next": "^16.4.0",
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "wouter": "catalog:"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/node": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "prettier": "^3.9.6",
+    "typescript": "~5.9.3"
+  }
+}

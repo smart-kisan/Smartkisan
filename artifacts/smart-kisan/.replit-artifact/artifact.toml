@@ -1,0 +1,25 @@
+kind = "web"
+previewPath = "/"
+title = "Smart Kisan (स्मार्ट किसान)"
+description = "A Hindi-first agricultural marketplace PWA connecting farmers, buyers, and mandi administrators with live Supabase data, transparent ledgers, privacy controls, and Gemini crop assistance."
+version = "1.0.0"
+id = "artifacts/smart-kisan"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 19236
+
+[services.development]
+run = "pnpm --dir ../.. run dev"
+
+[services.production.build]
+args = [ "pnpm", "--dir", "../..", "run", "build" ]
+
+[services.production.run]
+args = [ "pnpm", "--dir", "../..", "run", "start" ]
+
+[services.env]
+PORT = "19236"
+BASE_PATH = "/"

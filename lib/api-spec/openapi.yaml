@@ -1,0 +1,608 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: Smart Kisan authenticated marketplace and Gemini assistance API
+servers:
+  - url: /api
+    description: Shared API service
+tags:
+  - name: health
+  - name: profile
+  - name: marketplace
+  - name: ledger
+  - name: government
+  - name: ai
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+  /me:
+    get:
+      operationId: getMyProfile
+      tags: [profile]
+      summary: Get the signed-in user's profile
+      responses:
+        "200":
+          description: Current profile, or null before onboarding
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProfileResult"
+    put:
+      operationId: saveMyProfile
+      tags: [profile]
+      summary: Create or update the signed-in user's profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProfileInput"
+      responses:
+        "200":
+          description: Saved profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Profile"
+  /marketplace/listings:
+    get:
+      operationId: getListings
+      tags: [marketplace]
+      summary: Search current marketplace listings
+      parameters:
+        - in: query
+          name: category
+          schema:
+            type: string
+            enum: [crop, nursery]
+        - in: query
+          name: search
+          schema: { type: string }
+        - in: query
+          name: state
+          schema: { type: string }
+        - in: query
+          name: district
+          schema: { type: string }
+        - in: query
+          name: radiusKm
+          schema: { type: integer, enum: [10, 25, 50] }
+        - in: query
+          name: latitude
+          schema: { type: number }
+        - in: query
+          name: longitude
+          schema: { type: number }
+      responses:
+        "200":
+          description: Database-backed listings; an empty array means no listings exist
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Listing"
+    post:
+      operationId: createListing
+      tags: [marketplace]
+      summary: Publish a farmer-owned listing
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ListingInput"
+      responses:
+        "201":
+          description: Created listing
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Listing"
+  /marketplace/listings/{listingId}/bids:
+    get:
+      operationId: getListingBids
+      tags: [marketplace]
+      summary: Get offers visible to the listing owner or buyer
+      parameters:
+        - in: path
+          name: listingId
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Current bids
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Bid"
+    post:
+      operationId: createBid
+      tags: [marketplace]
+      summary: Place an offer on a listing
+      parameters:
+        - in: path
+          name: listingId
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BidInput"
+      responses:
+        "201":
+          description: Created bid
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Bid"
+  /marketplace/bids/{bidId}/accept:
+    post:
+      operationId: acceptBid
+      tags: [marketplace]
+      summary: Accept a bid and lock the deal
+      parameters:
+        - in: path
+          name: bidId
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Locked order
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+  /marketplace/orders:
+    get:
+      operationId: getMyOrders
+      tags: [marketplace]
+      summary: Get the current user's orders
+      responses:
+        "200":
+          description: Orders involving the signed-in user
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Order"
+  /marketplace/orders/{orderId}/contact:
+    get:
+      operationId: getOrderContact
+      tags: [marketplace]
+      summary: Reveal trade contact details only to participants after a deal is locked
+      parameters:
+        - in: path
+          name: orderId
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Other party's contact after the deal is locked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TradeContact"
+  /ledger/entries:
+    get:
+      operationId: getLedgerEntries
+      tags: [ledger]
+      summary: Get the signed-in farmer's ledger entries
+      responses:
+        "200":
+          description: Ledger entries belonging only to the signed-in user
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LedgerEntry"
+    post:
+      operationId: createLedgerEntry
+      tags: [ledger]
+      summary: Add a private farm expense
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LedgerEntryInput"
+      responses:
+        "201":
+          description: Created ledger entry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LedgerEntry"
+  /ledger/entries/{entryId}:
+    delete:
+      operationId: deleteLedgerEntry
+      tags: [ledger]
+      summary: Delete an owned ledger entry
+      parameters:
+        - in: path
+          name: entryId
+          required: true
+          schema: { type: string }
+      responses:
+        "204":
+          description: Deleted
+  /government/overview:
+    get:
+      operationId: getGovernmentOverview
+      tags: [government]
+      summary: Get live aggregate marketplace and tax totals
+      responses:
+        "200":
+          description: Aggregates calculated from saved database records
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GovernmentOverview"
+  /government/msp:
+    get:
+      operationId: getMspPrices
+      tags: [government]
+      summary: Get current MSP reference prices
+      responses:
+        "200":
+          description: MSP records from the database; no seeded reference values
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MspPrice"
+    post:
+      operationId: createMspPrice
+      tags: [government]
+      summary: Add an attributed MSP reference as an authorized mandi administrator
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MspPriceInput"
+      responses:
+        "201":
+          description: Saved MSP reference
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MspPrice"
+  /government/tax-rules:
+    get:
+      operationId: getMandiTaxRules
+      tags: [government]
+      summary: Get the latest effective tax rule for each state
+      responses:
+        "200":
+          description: Current tax rules from the database
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MandiTaxRule"
+    post:
+      operationId: createMandiTaxRule
+      tags: [government]
+      summary: Add an attributed mandi tax rule as an authorized administrator
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MandiTaxRuleInput"
+      responses:
+        "201":
+          description: Saved mandi tax rule
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MandiTaxRule"
+  /ai/chat:
+    post:
+      operationId: askFarmAssistant
+      tags: [ai]
+      summary: Ask Gemini a farming question
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FarmAssistantInput"
+      responses:
+        "200":
+          description: Gemini response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FarmAssistantReply"
+  /ai/crop-doctor:
+    post:
+      operationId: diagnoseCropImage
+      tags: [ai]
+      summary: Analyze a crop image with Gemini vision
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CropDoctorInput"
+      responses:
+        "200":
+          description: Gemini vision diagnosis and recommendations
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CropDoctorResult"
+  /ai/parse-listing:
+    post:
+      operationId: parseVoiceListing
+      tags: [ai]
+      summary: Convert Hindi or Haryanvi voice transcription to listing fields
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VoiceListingInput"
+      responses:
+        "200":
+          description: Parsed listing fields for farmer review
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VoiceListingResult"
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status: { type: string }
+      required: [status]
+    Profile:
+      type: object
+      properties:
+        userId: { type: string }
+        displayName: { type: string }
+        role: { type: string, enum: [farmer, buyer, mandi_admin, admin] }
+        phone: { type: ["string", "null"] }
+        gstin: { type: ["string", "null"] }
+        businessName: { type: ["string", "null"] }
+        district: { type: ["string", "null"] }
+        state: { type: ["string", "null"] }
+        verified: { type: boolean }
+      required: [userId, displayName, role, phone, gstin, businessName, district, state, verified]
+    ProfileResult:
+      type: object
+      properties:
+        profile:
+          oneOf:
+            - $ref: "#/components/schemas/Profile"
+            - type: "null"
+      required: [profile]
+    ProfileInput:
+      type: object
+      properties:
+        displayName: { type: string, minLength: 1, maxLength: 100 }
+        role: { type: string, enum: [farmer, buyer] }
+        phone: { type: string, maxLength: 20 }
+        gstin: { type: ["string", "null"], maxLength: 20 }
+        businessName: { type: ["string", "null"], maxLength: 160 }
+        district: { type: ["string", "null"], maxLength: 120 }
+        state: { type: ["string", "null"], maxLength: 120 }
+      required: [displayName, role, phone]
+    Listing:
+      type: object
+      properties:
+        id: { type: string }
+        crop: { type: string }
+        category: { type: string, enum: [crop, nursery] }
+        quantity: { type: number }
+        unit: { type: string }
+        askingPrice: { type: number }
+        location: { type: string }
+        district: { type: ["string", "null"] }
+        state: { type: ["string", "null"] }
+        latitude: { type: ["number", "null"] }
+        longitude: { type: ["number", "null"] }
+        mspPrice: { type: ["number", "null"] }
+        qualityScore: { type: ["number", "null"] }
+        status: { type: string, enum: [live, pending, sold, withdrawn] }
+        createdAt: { type: string, format: date-time }
+        bidCount: { type: integer }
+        sellerLabel: { type: string }
+        distanceKm: { type: ["number", "null"] }
+        isMine: { type: boolean }
+      required: [id, crop, category, quantity, unit, askingPrice, location, district, state, latitude, longitude, mspPrice, qualityScore, status, createdAt, bidCount, sellerLabel, distanceKm, isMine]
+    ListingInput:
+      type: object
+      properties:
+        crop: { type: string, minLength: 1, maxLength: 120 }
+        category: { type: string, enum: [crop, nursery] }
+        quantity: { type: number, exclusiveMinimum: 0 }
+        unit: { type: string, minLength: 1, maxLength: 40 }
+        askingPrice: { type: number, minimum: 0 }
+        location: { type: string, minLength: 1, maxLength: 200 }
+        district: { type: ["string", "null"], maxLength: 120 }
+        state: { type: ["string", "null"], maxLength: 120 }
+        latitude: { type: ["number", "null"], minimum: -90, maximum: 90 }
+        longitude: { type: ["number", "null"], minimum: -180, maximum: 180 }
+      required: [crop, category, quantity, unit, askingPrice, location]
+    Bid:
+      type: object
+      properties:
+        id: { type: string }
+        listingId: { type: string }
+        amount: { type: number }
+        quantity: { type: number }
+        buyerLabel: { type: string }
+        status: { type: string, enum: [active, accepted, rejected] }
+        createdAt: { type: string, format: date-time }
+      required: [id, listingId, amount, quantity, buyerLabel, status, createdAt]
+    BidInput:
+      type: object
+      properties:
+        amount: { type: number, exclusiveMinimum: 0 }
+        quantity: { type: number, exclusiveMinimum: 0 }
+      required: [amount, quantity]
+    Order:
+      type: object
+      properties:
+        id: { type: string }
+        listingId: { type: string }
+        crop: { type: string }
+        quantity: { type: number }
+        totalAmount: { type: number }
+        status: { type: string }
+        partnerLabel: { type: string }
+        dealLockedAt: { type: string, format: date-time }
+        taxAmount: { type: ["number", "null"] }
+      required: [id, listingId, crop, quantity, totalAmount, status, partnerLabel, dealLockedAt, taxAmount]
+    TradeContact:
+      type: object
+      properties:
+        name: { type: string }
+        phone: { type: string }
+        businessName: { type: ["string", "null"] }
+        gstin: { type: ["string", "null"] }
+      required: [name, phone, businessName, gstin]
+    LedgerEntry:
+      type: object
+      properties:
+        id: { type: string }
+        category: { type: string, enum: [diesel, labor, fertilizer, tractor, other] }
+        description: { type: string }
+        amount: { type: number }
+        hours: { type: ["number", "null"] }
+        entryDate: { type: string, format: date }
+        createdAt: { type: string, format: date-time }
+      required: [id, category, description, amount, hours, entryDate, createdAt]
+    LedgerEntryInput:
+      type: object
+      properties:
+        category: { type: string, enum: [diesel, labor, fertilizer, tractor, other] }
+        description: { type: string, minLength: 1, maxLength: 240 }
+        amount: { type: number, exclusiveMinimum: 0 }
+        hours: { type: ["number", "null"], minimum: 0 }
+        entryDate: { type: string, format: date }
+      required: [category, description, amount, entryDate]
+    GovernmentOverview:
+      type: object
+      properties:
+        farmerCount: { type: integer }
+        buyerCount: { type: integer }
+        listingCount: { type: integer }
+        activeBidCount: { type: integer }
+        settledValue: { type: number }
+        taxTracked: { type: number }
+        mspAlertCount: { type: integer }
+      required: [farmerCount, buyerCount, listingCount, activeBidCount, settledValue, taxTracked, mspAlertCount]
+    MspPrice:
+      type: object
+      properties:
+        id: { type: string }
+        crop: { type: string }
+        state: { type: string }
+        mandi: { type: ["string", "null"] }
+        pricePerQuintal: { type: number }
+        effectiveDate: { type: string, format: date }
+        source: { type: string }
+      required: [id, crop, state, mandi, pricePerQuintal, effectiveDate, source]
+    MspPriceInput:
+      type: object
+      properties:
+        crop: { type: string, minLength: 1, maxLength: 120 }
+        state: { type: string, minLength: 1, maxLength: 120 }
+        mandi: { type: ["string", "null"], maxLength: 120 }
+        pricePerQuintal: { type: number, exclusiveMinimum: 0 }
+        effectiveDate: { type: string, format: date }
+        source: { type: string, minLength: 1, maxLength: 500 }
+      required: [crop, state, pricePerQuintal, effectiveDate, source]
+    MandiTaxRule:
+      type: object
+      properties:
+        id: { type: string }
+        state: { type: string }
+        taxRate: { type: number, minimum: 0, maximum: 100 }
+        effectiveDate: { type: string, format: date }
+        source: { type: string }
+      required: [id, state, taxRate, effectiveDate, source]
+    MandiTaxRuleInput:
+      type: object
+      properties:
+        state: { type: string, minLength: 1, maxLength: 120 }
+        taxRate: { type: number, minimum: 0, maximum: 100 }
+        effectiveDate: { type: string, format: date }
+        source: { type: string, minLength: 1, maxLength: 500 }
+      required: [state, taxRate, effectiveDate, source]
+    FarmAssistantInput:
+      type: object
+      properties:
+        message: { type: string, minLength: 1, maxLength: 8000 }
+        language: { type: string, enum: [hi, haryanvi, en] }
+      required: [message, language]
+    FarmAssistantReply:
+      type: object
+      properties:
+        reply: { type: string }
+      required: [reply]
+    CropDoctorInput:
+      type: object
+      properties:
+        imageBase64: { type: string, minLength: 1 }
+        mimeType: { type: string, enum: [image/jpeg, image/png, image/webp] }
+        language: { type: string, enum: [hi, haryanvi, en] }
+      required: [imageBase64, mimeType, language]
+    CropDoctorResult:
+      type: object
+      properties:
+        diagnosis: { type: string }
+        severity: { type: string }
+        confidence: { type: ["number", "null"] }
+        recommendations:
+          type: array
+          items: { type: string }
+        caution: { type: string }
+      required: [diagnosis, severity, confidence, recommendations, caution]
+    VoiceListingInput:
+      type: object
+      properties:
+        transcript: { type: string, minLength: 1, maxLength: 2000 }
+        language: { type: string, enum: [hi, haryanvi, en] }
+      required: [transcript, language]
+    VoiceListingResult:
+      type: object
+      properties:
+        crop: { type: ["string", "null"] }
+        category: { type: ["string", "null"], enum: [crop, nursery, null] }
+        quantity: { type: ["number", "null"] }
+        unit: { type: ["string", "null"] }
+        askingPrice: { type: ["number", "null"] }
+        location: { type: ["string", "null"] }
+        district: { type: ["string", "null"] }
+        state: { type: ["string", "null"] }
+        missingFields:
+          type: array
+          items: { type: string }
+      required: [crop, category, quantity, unit, askingPrice, location, district, state, missingFields]
+
